@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, CheckCircle, Copy, Check, Lock, Truck, RotateCcw } from 'lucide-react';
 
 export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clearCart }) {
@@ -16,6 +16,12 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
   const [createdOrder, setCreatedOrder] = useState(null);
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (orderSuccess) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [orderSuccess]);
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const shippingFee = subtotal >= 500000 ? 0 : 30000;

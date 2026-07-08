@@ -11,7 +11,7 @@ import UserOrdersPage from './components/UserOrdersPage';
 import UserProfilePage from './components/UserProfilePage';
 import { INITIAL_PRODUCTS } from './data/products';
 import { supabase } from './supabase';
-import { SlidersHorizontal, RefreshCw, Search } from 'lucide-react';
+import { SlidersHorizontal, RefreshCw, Search, ArrowUp } from 'lucide-react';
 
 function App() {
   // --- States ---
@@ -66,6 +66,19 @@ function App() {
   
   // Notifications Toast
   const [toast, setToast] = useState({ message: '', type: 'success' });
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 400) {
+        setShowBackToTop(true);
+      } else {
+        setShowBackToTop(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // --- Supabase Effects ---
   
@@ -1106,6 +1119,18 @@ function App() {
         type={toast.type}
         onClose={() => setToast({ message: '', type: 'success' })}
       />
+
+      {/* 6. Back To Top Button */}
+      {showBackToTop && (
+        <button 
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="back-to-top-btn animate-fade-in"
+          title="Về đầu trang"
+          aria-label="Về đầu trang"
+        >
+          <ArrowUp size={20} />
+        </button>
+      )}
     </div>
   );
 }

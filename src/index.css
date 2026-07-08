@@ -3485,3 +3485,38 @@ hr.divider {
     border-radius: 0;
   }
 }
+
+/* Back to Top Button */
+.back-to-top-btn {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 999;
+  background-color: var(--accent-color);
+  color: var(--bg-primary);
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-smooth);
+}
+
+.back-to-top-btn:hover {
+  background-color: var(--text-primary);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+@media (max-width: 768px) {
+  .back-to-top-btn {
+    bottom: 2rem;
+    right: 1.5rem;
+    width: 40px;
+    height: 40px;
+  }
+}
