@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Plus, Trash2, Package, ListOrdered, Users, Tags, AlertCircle, 
-  Trash, Eye, RefreshCw, ChevronRight, Search, ShieldAlert 
+  Trash, Eye, RefreshCw, ChevronRight, Search, ShieldAlert, X 
 } from 'lucide-react';
 
 export default function AdminPanel({
@@ -18,6 +18,7 @@ export default function AdminPanel({
   onDeleteUser,
 }) {
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'products', 'categories', 'users'
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
 
   // New Category State
   const [newCatName, setNewCatName] = useState('');
@@ -103,6 +104,7 @@ export default function AdminPanel({
     };
 
     onAddProduct(newProdObj);
+    setIsAddProductModalOpen(false);
     
     // Reset form
     setNewProduct({
@@ -281,146 +283,184 @@ export default function AdminPanel({
           <div className="admin-section">
             <h2 className="admin-section-title">Danh sách sản phẩm</h2>
             
-            {/* Form Add Product */}
-            <form onSubmit={handleProductSubmit} className="admin-product-form">
-              <h3>Thêm sản phẩm mới</h3>
-              {formError && <p className="form-error-msg">{formError}</p>}
-              
-              <div className="form-grid-2">
-                <div className="form-input-group">
-                  <label>Tên sản phẩm *</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={newProduct.name}
-                    onChange={handleInputChange}
-                    placeholder="VD: Áo Blazer Linen"
-                    required
-                  />
-                </div>
-                <div className="form-grid-sub2">
-                  <div className="form-input-group">
-                    <label>Giá bán (đ) *</label>
-                    <input
-                      type="number"
-                      name="price"
-                      value={newProduct.price}
-                      onChange={handleInputChange}
-                      placeholder="VD: 450000"
-                      required
-                    />
-                  </div>
-                  <div className="form-input-group">
-                    <label>Danh mục *</label>
-                    <select name="category" value={newProduct.category} onChange={handleInputChange}>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-input-group">
-                <label>Mô tả chi tiết</label>
-                <textarea
-                  name="description"
-                  value={newProduct.description}
-                  onChange={handleInputChange}
-                  placeholder="Mô tả sản phẩm, chất liệu, size guide..."
-                  rows="3"
-                ></textarea>
-              </div>
-
-              <div className="form-grid-2">
-                <div className="form-input-group">
-                  <label>Đường dẫn hình ảnh 1 *</label>
-                  <input
-                    type="url"
-                    name="imageUrl1"
-                    value={newProduct.imageUrl1}
-                    onChange={handleInputChange}
-                    placeholder="Đường dẫn link ảnh"
-                    required
-                  />
-                </div>
-                <div className="form-input-group">
-                  <label>Đường dẫn hình ảnh 2 (Không bắt buộc)</label>
-                  <input
-                    type="url"
-                    name="imageUrl2"
-                    value={newProduct.imageUrl2}
-                    onChange={handleInputChange}
-                    placeholder="Đường dẫn link ảnh phụ"
-                  />
-                </div>
-              </div>
-
-              <div className="form-grid-2">
-                <div className="form-input-group">
-                  <label>Kích thước sẵn có</label>
-                  <div className="checkbox-group">
-                    {['S', 'M', 'L', 'XL', '39', '40', '41', '42'].map((size) => (
-                      <label key={size} className="checkbox-label">
+            {/* Form Add Product (Rendered in Modal) */}
+            {isAddProductModalOpen && (
+              <div className="modal-backdrop">
+                <div className="admin-product-modal-content animate-fade-in">
+                  <button 
+                    type="button" 
+                    className="modal-close-btn" 
+                    onClick={() => {
+                      setIsAddProductModalOpen(false);
+                      setFormError('');
+                    }}
+                    aria-label="Đóng"
+                  >
+                    <X size={20} />
+                  </button>
+                  
+                  <form onSubmit={handleProductSubmit} className="admin-product-form" style={{ border: 'none', padding: 0, margin: 0, boxShadow: 'none' }}>
+                    <h3 style={{ marginTop: 0 }}>Đăng bán sản phẩm mới</h3>
+                    {formError && <p className="form-error-msg" style={{ marginBottom: '1rem' }}>{formError}</p>}
+                    
+                    <div className="form-grid-2">
+                      <div className="form-input-group">
+                        <label>Tên sản phẩm *</label>
                         <input
-                          type="checkbox"
-                          checked={newProduct.sizes.includes(size)}
-                          onChange={() => handleCheckboxSizeChange(size)}
+                          type="text"
+                          name="name"
+                          value={newProduct.name}
+                          onChange={handleInputChange}
+                          placeholder="VD: Áo Blazer Linen"
+                          required
                         />
-                        <span>{size}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="form-grid-sub2">
-                  <div className="form-input-group">
-                    <label>Số lượng trong kho</label>
-                    <input
-                      type="number"
-                      name="inStock"
-                      value={newProduct.inStock}
-                      onChange={handleInputChange}
-                      min="0"
-                    />
-                  </div>
+                      </div>
+                      <div className="form-grid-sub2">
+                        <div className="form-input-group">
+                          <label>Giá bán (đ) *</label>
+                          <input
+                            type="number"
+                            name="price"
+                            value={newProduct.price}
+                            onChange={handleInputChange}
+                            placeholder="VD: 450000"
+                            required
+                          />
+                        </div>
+                        <div className="form-input-group">
+                          <label>Danh mục *</label>
+                          <select name="category" value={newProduct.category} onChange={handleInputChange}>
+                            {categories.map((c) => (
+                              <option key={c.id} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="form-input-group">
+                      <label>Mô tả chi tiết</label>
+                      <textarea
+                        name="description"
+                        value={newProduct.description}
+                        onChange={handleInputChange}
+                        placeholder="Mô tả sản phẩm, chất liệu, size guide..."
+                        rows="3"
+                      ></textarea>
+                    </div>
+
+                    <div className="form-grid-2">
+                      <div className="form-input-group">
+                        <label>Đường dẫn hình ảnh 1 *</label>
+                        <input
+                          type="url"
+                          name="imageUrl1"
+                          value={newProduct.imageUrl1}
+                          onChange={handleInputChange}
+                          placeholder="Đường dẫn link ảnh"
+                          required
+                        />
+                      </div>
+                      <div className="form-input-group">
+                        <label>Đường dẫn hình ảnh 2 (Không bắt buộc)</label>
+                        <input
+                          type="url"
+                          name="imageUrl2"
+                          value={newProduct.imageUrl2}
+                          onChange={handleInputChange}
+                          placeholder="Đường dẫn link ảnh phụ"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-grid-2">
+                      <div className="form-input-group">
+                        <label>Kích thước sẵn có</label>
+                        <div className="checkbox-group">
+                          {['S', 'M', 'L', 'XL', '39', '40', '41', '42'].map((size) => (
+                            <label key={size} className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={newProduct.sizes.includes(size)}
+                                onChange={() => handleCheckboxSizeChange(size)}
+                              />
+                              <span>{size}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="form-grid-sub2">
+                        <div className="form-input-group">
+                          <label>Số lượng trong kho</label>
+                          <input
+                            type="number"
+                            name="inStock"
+                            value={newProduct.inStock}
+                            onChange={handleInputChange}
+                            min="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="form-input-group" style={{ marginBottom: '1.5rem' }}>
+                      <label>Màu sắc (Định dạng: TênMàu:MãHex, cách bởi dấu phẩy)</label>
+                      <input
+                        type="text"
+                        name="colorsInput"
+                        value={newProduct.colorsInput}
+                        onChange={handleInputChange}
+                        placeholder="VD: Đen:#18181b, Trắng:#fafafa, Xám:#71717a"
+                      />
+                    </div>
+
+                    <button type="submit" className="admin-submit-btn" style={{ width: '100%', justifyContent: 'center' }}>
+                      <Plus size={16} />
+                      <span>Đăng bán sản phẩm</span>
+                    </button>
+                  </form>
                 </div>
               </div>
-
-              <div className="form-input-group">
-                <label>Màu sắc (Định dạng: TênMàu:MãHex, cách bởi dấu phẩy)</label>
-                <input
-                  type="text"
-                  name="colorsInput"
-                  value={newProduct.colorsInput}
-                  onChange={handleInputChange}
-                  placeholder="VD: Đen:#18181b, Trắng:#fafafa, Xám:#71717a"
-                />
-              </div>
-
-              <button type="submit" className="admin-submit-btn">
-                <Plus size={16} />
-                <span>Đăng bán sản phẩm</span>
-              </button>
-            </form>
-
-            <hr className="divider margin-y-lg" />
+            )}
 
             {/* List Products Header Toolbar */}
-            <div className="admin-toolbar-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
+            <div className="admin-toolbar-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
               <h3 className="section-title" style={{ margin: 0 }}>Danh sách sản phẩm ({products.length})</h3>
               
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Bộ lọc kho:</span>
                 <select 
                   value={prodStockFilter} 
                   onChange={(e) => setProdStockFilter(e.target.value)}
                   className="sort-select"
-                  style={{ padding: '0.25rem 1.5rem 0.25rem 0.5rem', fontSize: '0.8rem' }}
+                  style={{ padding: '0.25rem 1.5rem 0.25rem 0.5rem', fontSize: '0.8rem', margin: 0 }}
                 >
                   <option value="all">Tất cả sản phẩm</option>
                   <option value="out">Đã hết hàng (0)</option>
                   <option value="low">Sắp hết hàng (1-5)</option>
                 </select>
+
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddProductModalOpen(true)}
+                  className="admin-add-product-btn"
+                  style={{
+                    backgroundColor: 'var(--accent-color)',
+                    color: 'var(--bg-primary)',
+                    border: 'none',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>Đăng sản phẩm</span>
+                </button>
               </div>
             </div>
 
