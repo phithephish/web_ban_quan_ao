@@ -391,7 +391,7 @@ export default function AdminPanel({
                     <h3 style={{ marginTop: 0 }}>Đăng bán sản phẩm mới</h3>
                     {formError && <p className="form-error-msg" style={{ marginBottom: '1rem' }}>{formError}</p>}
                     
-                    <div className="form-grid-2">
+                    <div className="form-grid-3">
                       <div className="form-input-group">
                         <label>Tên sản phẩm *</label>
                         <input
@@ -403,26 +403,24 @@ export default function AdminPanel({
                           required
                         />
                       </div>
-                      <div className="form-grid-sub2">
-                        <div className="form-input-group">
-                          <label>Giá bán (đ) *</label>
-                          <input
-                            type="number"
-                            name="price"
-                            value={newProduct.price}
-                            onChange={handleInputChange}
-                            placeholder="VD: 450000"
-                            required
-                          />
-                        </div>
-                        <div className="form-input-group">
-                          <label>Danh mục *</label>
-                          <select name="category" value={newProduct.category} onChange={handleInputChange}>
-                            {categories.map((c) => (
-                              <option key={c.id} value={c.name}>{c.name}</option>
-                            ))}
-                          </select>
-                        </div>
+                      <div className="form-input-group">
+                        <label>Giá bán (đ) *</label>
+                        <input
+                          type="number"
+                          name="price"
+                          value={newProduct.price}
+                          onChange={handleInputChange}
+                          placeholder="VD: 450000"
+                          required
+                        />
+                      </div>
+                      <div className="form-input-group">
+                        <label>Danh mục *</label>
+                        <select name="category" value={newProduct.category} onChange={handleInputChange}>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.name}>{c.name}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
@@ -492,45 +490,47 @@ export default function AdminPanel({
                       </div>
                     </div>
 
-                    <div className="form-grid-2">
-                      <div className="form-input-group">
-                        <label>Kích thước sẵn có</label>
-                        <div className="checkbox-group">
-                          {['S', 'M', 'L', 'XL', '39', '40', '41', '42'].map((size) => (
-                            <label key={size} className="checkbox-label">
-                              <input
-                                type="checkbox"
-                                checked={newProduct.sizes.includes(size)}
-                                onChange={() => handleCheckboxSizeChange(size)}
-                              />
-                              <span>{size}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="form-grid-sub2">
-                        <div className="form-input-group">
-                          <label>Số lượng trong kho</label>
-                          <input
-                            type="number"
-                            name="inStock"
-                            value={newProduct.inStock}
-                            onChange={handleInputChange}
-                            min="0"
-                          />
-                        </div>
+                    <div className="form-input-group">
+                      <label>Kích thước sẵn có</label>
+                      <div className="admin-size-chips-group">
+                        {['S', 'M', 'L', 'XL', '39', '40', '41', '42'].map((size) => {
+                          const isSelected = newProduct.sizes.includes(size);
+                          return (
+                            <button
+                              key={size}
+                              type="button"
+                              className={`admin-size-chip ${isSelected ? 'active' : ''}`}
+                              onClick={() => handleCheckboxSizeChange(size)}
+                            >
+                              {size}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    <div className="form-input-group" style={{ marginBottom: '1.5rem' }}>
-                      <label>Màu sắc (Định dạng: TênMàu:MãHex, cách bởi dấu phẩy)</label>
-                      <input
-                        type="text"
-                        name="colorsInput"
-                        value={newProduct.colorsInput}
-                        onChange={handleInputChange}
-                        placeholder="VD: Đen:#18181b, Trắng:#fafafa, Xám:#71717a"
-                      />
+                    <div className="form-grid-2" style={{ marginBottom: '1.5rem' }}>
+                      <div className="form-input-group">
+                        <label>Số lượng trong kho *</label>
+                        <input
+                          type="number"
+                          name="inStock"
+                          value={newProduct.inStock}
+                          onChange={handleInputChange}
+                          min="0"
+                          required
+                        />
+                      </div>
+                      <div className="form-input-group">
+                        <label>Màu sắc (Định dạng: TênMàu:MãHex, cách bởi dấu phẩy)</label>
+                        <input
+                          type="text"
+                          name="colorsInput"
+                          value={newProduct.colorsInput}
+                          onChange={handleInputChange}
+                          placeholder="VD: Đen:#18181b, Trắng:#fafafa, Xám:#71717a"
+                        />
+                      </div>
                     </div>
 
                     <button 

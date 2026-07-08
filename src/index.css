@@ -3469,7 +3469,7 @@ hr.divider {
 .admin-product-modal-content {
   background-color: var(--bg-primary);
   width: 100%;
-  max-width: 650px;
+  max-width: 750px;
   border-radius: 12px;
   position: relative;
   box-shadow: var(--shadow-lg);
@@ -3590,4 +3590,53 @@ hr.divider {
 
 .remove-image-badge:hover {
   background-color: var(--accent-color);
+}
+
+/* Form grid of 3 columns for balanced name/price/category fields */
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 1.25rem;
+}
+
+/* Admin size selection chips styling */
+.admin-size-chips-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.admin-size-chip {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 38px;
+}
+
+.admin-size-chip.active {
+  background-color: var(--accent-color);
+  color: var(--bg-primary);
+  border-color: var(--accent-color);
+}
+
+.admin-size-chip:hover {
+  border-color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .form-grid-3 {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
