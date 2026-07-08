@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingBag, Search, Settings, ArrowLeft, LogIn, LogOut, FileText, User, Trash2 } from 'lucide-react';
 
 export default function Header({
@@ -14,13 +14,30 @@ export default function Header({
   onLoginClick,
   onLogoutClick,
   onMyOrdersClick,
+  onProfileClick,
   categories,
   onDeleteAccountClick,
 }) {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const dropdownRef = useRef(null);
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
   const handleDropdownToggle = () => setShowUserDropdown(!showUserDropdown);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowUserDropdown(false);
+      }
+    }
+
+    if (showUserDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserDropdown]);
 
   // Dynamic category list from database
   const categoryNames = ['Tất cả', ...categories.map(c => c.name)];
@@ -57,33 +74,21 @@ export default function Header({
         )}
 
         <div className="header-actions">
-          {!isAdminMode && (
-            <div className="search-bar">
-              <Search size={18} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm sản phẩm..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input"
-              />
-            </div>
-          )}
+
 
           {/* User Auth Info / Dropdown */}
           {!isAdminMode && (
             <div className="user-auth-section">
               {user ? (
-                <div className="user-profile-menu-container">
+                <div className="user-profile-menu-container" ref={dropdownRef}>
                   <button 
                     className="user-menu-trigger" 
                     onClick={handleDropdownToggle}
                     title={`Chào, ${userName}`}
                   >
                     <div className="user-avatar-circle">
-                      {userName.charAt(0).toUpperCase()}
+                      <User size={16} />
                     </div>
-                    <span className="user-menu-name">{userName}</span>
                   </button>
                   
                   {showUserDropdown && (
@@ -92,7 +97,30 @@ export default function Header({
                         <strong>{userName}</strong>
                         <span>{user.email}</span>
                       </div>
-                      <hr className="dropdown-divider" />
+                     <hr className="dropdown-divider" />
+                      {user.email === 'admin@gmail.com' && (
+                        <button 
+                          className="dropdown-item" 
+                          onClick={() => {
+                            setIsAdminMode(!isAdminMode);
+                            setShowUserDropdown(false);
+                          }}
+                          style={{ fontWeight: '600', color: 'var(--accent-color)' }}
+                        >
+                          <Settings size={16} />
+                          <span>{isAdminMode ? 'Quay lại Cửa hàng' : 'Trang Quản trị'}</span>
+                        </button>
+                      )}
+                      <button 
+                        className="dropdown-item" 
+                        onClick={() => {
+                          onProfileClick();
+                          setShowUserDropdown(false);
+                        }}
+                      >
+                        <User size={16} />
+                        <span>Thông tin cá nhân</span>
+                      </button>
                       <button 
                         className="dropdown-item" 
                         onClick={() => {
@@ -113,18 +141,6 @@ export default function Header({
                         <LogOut size={16} />
                         <span>Đăng xuất</span>
                       </button>
-                      <hr className="dropdown-divider" />
-                      <button 
-                        className="dropdown-item logout-item" 
-                        style={{ color: 'var(--danger-color)' }}
-                        onClick={() => {
-                          onDeleteAccountClick();
-                          setShowUserDropdown(false);
-                        }}
-                      >
-                        <Trash2 size={16} />
-                        <span>Xóa tài khoản của tôi</span>
-                      </button>
                     </div>
                   )}
                 </div>
@@ -137,16 +153,7 @@ export default function Header({
             </div>
           )}
 
-          {/* Admin Control settings gear icon - ONLY visible for admin@gmail.com */}
-          {user?.email === 'admin@gmail.com' && (
-            <button
-              className={`admin-toggle-btn ${isAdminMode ? 'active' : ''}`}
-              onClick={() => setIsAdminMode(!isAdminMode)}
-              title={isAdminMode ? "Về trang cửa hàng" : "Trang quản trị cửa hàng"}
-            >
-              <Settings size={20} />
-            </button>
-          )}
+
 
           {!isAdminMode && (
             <button className="cart-trigger" onClick={onCartClick} aria-label="Giỏ hàng">

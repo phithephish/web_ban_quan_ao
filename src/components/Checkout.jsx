@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, CheckCircle, Copy, Check } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Copy, Check, Lock, Truck, RotateCcw } from 'lucide-react';
 
 export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clearCart }) {
   const [formData, setFormData] = useState({
-    fullName: '',
+    lastName: '',
+    firstName: '',
     phone: '',
     email: '',
     address: '',
@@ -20,12 +21,57 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
   const shippingFee = subtotal >= 500000 ? 0 : 30000;
   const total = subtotal + shippingFee;
 
+  const validateSingleField = (name, value) => {
+    switch (name) {
+      case 'lastName':
+        if (!value.trim()) return 'Vui lòng nhập Họ';
+        if (value.trim().length < 2) return 'Họ phải từ 2 ký tự trở lên';
+        if (/[0-9!@#$%^&*(),.?":{}|<>]/g.test(value)) return 'Họ chỉ được chứa chữ cái';
+        return '';
+      case 'firstName':
+        if (!value.trim()) return 'Vui lòng nhập Tên';
+        if (value.trim().length < 2) return 'Tên phải từ 2 ký tự trở lên';
+        if (/[0-9!@#$%^&*(),.?":{}|<>]/g.test(value)) return 'Tên chỉ được chứa chữ cái';
+        return '';
+      case 'phone':
+        if (!value.trim()) {
+          return 'Vui lòng nhập số điện thoại';
+        }
+        if (!/^0\d{9}$/.test(value.trim())) {
+          return 'Số điện thoại không hợp lệ (phải gồm 10 chữ số bắt đầu bằng số 0)';
+        }
+        return '';
+      case 'email':
+        if (value.trim()) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(value.trim())) {
+            return 'Email không đúng định dạng (VD: name@domain.com)';
+          }
+        }
+        return '';
+      case 'address':
+        if (!value.trim()) return 'Vui lòng nhập địa chỉ nhận hàng';
+        if (value.trim().length < 8) return 'Địa chỉ nhận hàng phải từ 8 ký tự trở lên';
+        if (!value.trim().includes(' ')) return 'Địa chỉ nhận hàng cần ghi rõ ràng (tỉnh/thành phố, quận/huyện, tên đường...)';
+        return '';
+      default:
+        return '';
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
     if (errors[name]) {
-      setErrors({ ...errors, [name]: '' });
+      const fieldError = validateSingleField(name, value);
+      setErrors(prev => ({ ...prev, [name]: fieldError }));
     }
+  };
+
+  const handleInputBlur = (e) => {
+    const { name, value } = e.target;
+    const fieldError = validateSingleField(name, value);
+    setErrors(prev => ({ ...prev, [name]: fieldError }));
   };
 
   const handleCopyText = (text) => {
@@ -36,13 +82,12 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.fullName.trim()) newErrors.fullName = 'Vui lòng nhập họ và tên';
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Vui lòng nhập số điện thoại';
-    } else if (!/^\d{10,11}$/.test(formData.phone.trim())) {
-      newErrors.phone = 'Số điện thoại không hợp lệ (10-11 chữ số)';
-    }
-    if (!formData.address.trim()) newErrors.address = 'Vui lòng nhập địa chỉ nhận hàng';
+    Object.keys(formData).forEach(key => {
+      if (key !== 'notes' && key !== 'paymentMethod') {
+        const error = validateSingleField(key, formData[key]);
+        if (error) newErrors[key] = error;
+      }
+    });
     return newErrors;
   };
 
@@ -51,13 +96,24 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
     const formErrors = validateForm();
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+      
+      // Auto-scroll and focus first error input
+      const firstErrorKey = Object.keys(formErrors)[0];
+      const errorEl = document.getElementById(firstErrorKey);
+      if (errorEl) {
+        errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        errorEl.focus();
+      }
       return;
     }
 
     const orderId = 'MIN-' + Math.floor(100000 + Math.random() * 900000);
     const orderData = {
       id: orderId,
-      customer: formData,
+      customer: {
+        ...formData,
+        fullName: `${formData.lastName.trim()} ${formData.firstName.trim()}`
+      },
       items: cartItems,
       subtotal,
       shippingFee,
@@ -104,7 +160,7 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
               <span>{createdOrder.customer.paymentMethod === 'cod' ? 'Thanh toán COD' : 'Chuyển khoản qua QR'}</span>
             </div>
             <hr />
-            <div className="summary-row">
+            <div className="summary-row total-row">
               <span>Tổng thanh toán:</span>
               <strong className="order-total">{createdOrder.total.toLocaleString('vi-VN')} đ</strong>
             </div>
@@ -179,18 +235,36 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
         <form onSubmit={handleSubmit} className="checkout-form">
           <h3 className="section-title">Thông tin giao hàng</h3>
           
-          <div className="form-input-group">
-            <label htmlFor="fullName">Họ và tên *</label>
-            <input
-              type="text"
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleInputChange}
-              placeholder="VD: Nguyễn Văn A"
-              className={errors.fullName ? 'error' : ''}
-            />
-            {errors.fullName && <span className="input-error-msg">{errors.fullName}</span>}
+          <div className="form-row-2col">
+            <div className="form-input-group">
+              <label htmlFor="lastName">Họ *</label>
+              <input
+                type="text"
+                id="lastName"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                onBlur={handleInputBlur}
+                placeholder="VD: Nguyễn"
+                className={errors.lastName ? 'error' : ''}
+              />
+              {errors.lastName && <span className="input-error-msg">{errors.lastName}</span>}
+            </div>
+
+            <div className="form-input-group">
+              <label htmlFor="firstName">Tên *</label>
+              <input
+                type="text"
+                id="firstName"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                onBlur={handleInputBlur}
+                placeholder="VD: Văn A"
+                className={errors.firstName ? 'error' : ''}
+              />
+              {errors.firstName && <span className="input-error-msg">{errors.firstName}</span>}
+            </div>
           </div>
 
           <div className="form-row-2col">
@@ -202,6 +276,7 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
+                onBlur={handleInputBlur}
                 placeholder="VD: 0987654321"
                 className={errors.phone ? 'error' : ''}
               />
@@ -216,8 +291,11 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
+                onBlur={handleInputBlur}
                 placeholder="VD: name@domain.com"
+                className={errors.email ? 'error' : ''}
               />
+              {errors.email && <span className="input-error-msg">{errors.email}</span>}
             </div>
           </div>
 
@@ -229,6 +307,7 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
               name="address"
               value={formData.address}
               onChange={handleInputChange}
+              onBlur={handleInputBlur}
               placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố"
               className={errors.address ? 'error' : ''}
             />
@@ -291,10 +370,14 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
             {cartItems.map((item) => (
               <div key={item.id} className="checkout-item-row">
                 <div className="checkout-item-info">
-                  <span className="checkout-item-qty">{item.quantity}x</span>
+                  <img 
+                    src={item.product.images[0]} 
+                    alt={item.product.name} 
+                    className="checkout-item-thumb"
+                  />
                   <div className="checkout-item-meta">
                     <span className="checkout-item-name">{item.product.name}</span>
-                    <span className="checkout-item-spec">Size: {item.size} | Màu: {item.color.name}</span>
+                    <span className="checkout-item-spec">Số lượng: {item.quantity} | Size: {item.size} | Màu: {item.color.name}</span>
                   </div>
                 </div>
                 <span className="checkout-item-price">
@@ -321,9 +404,18 @@ export default function Checkout({ cartItems, onBackToCart, onSubmitOrder, clear
           </div>
           
           <div className="checkout-trust-badges">
-            <div className="badge-item">🔒 Bảo mật thanh toán SSL</div>
-            <div className="badge-item">⚡ Giao hàng nhanh chóng toàn quốc</div>
-            <div className="badge-item">🔄 Đổi trả hàng trong 7 ngày dễ dàng</div>
+            <div className="badge-item">
+              <Lock size={14} />
+              <span>Bảo mật thanh toán SSL</span>
+            </div>
+            <div className="badge-item">
+              <Truck size={14} />
+              <span>Giao hàng nhanh chóng toàn quốc</span>
+            </div>
+            <div className="badge-item">
+              <RotateCcw size={14} />
+              <span>Đổi trả hàng trong 7 ngày dễ dàng</span>
+            </div>
           </div>
         </div>
       </div>

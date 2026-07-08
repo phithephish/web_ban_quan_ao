@@ -7,7 +7,8 @@ import Checkout from './components/Checkout';
 import AdminPanel from './components/AdminPanel';
 import Notification from './components/Notification';
 import AuthModal from './components/AuthModal';
-import UserOrdersModal from './components/UserOrdersModal';
+import UserOrdersPage from './components/UserOrdersPage';
+import UserProfilePage from './components/UserProfilePage';
 import { INITIAL_PRODUCTS } from './data/products';
 import { supabase } from './supabase';
 import { SlidersHorizontal, RefreshCw, Search } from 'lucide-react';
@@ -15,8 +16,24 @@ import { SlidersHorizontal, RefreshCw, Search } from 'lucide-react';
 function App() {
   // --- States ---
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
-  const [orders, setOrders] = useState([]);
-  const [cart, setCart] = useState([]);
+  const [orders, setOrders] = useState(() => {
+    try {
+      const savedOrders = localStorage.getItem('minimal_shop_orders');
+      return savedOrders ? JSON.parse(savedOrders) : [];
+    } catch (e) {
+      console.warn("Failed to load orders from localStorage:", e);
+      return [];
+    }
+  });
+  const [cart, setCart] = useState(() => {
+    try {
+      const savedCart = localStorage.getItem('minimal_shop_cart');
+      return savedCart ? JSON.parse(savedCart) : [];
+    } catch (e) {
+      console.warn("Failed to load cart from localStorage:", e);
+      return [];
+    }
+  });
   
   // Categories and User Profiles Dynamic States
   const [categories, setCategories] = useState([
@@ -42,10 +59,9 @@ function App() {
   // Views & UI States
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [activeView, setActiveView] = useState('shop'); // 'shop' or 'checkout'
+  const [activeView, setActiveView] = useState('shop'); // 'shop', 'checkout', 'my-orders'
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   
   // Notifications Toast
@@ -144,7 +160,7 @@ function App() {
 
   // Sync scroll lock when modal or drawer is open
   useEffect(() => {
-    const isAnyModalOpen = selectedProduct || isCartOpen || isAuthModalOpen || isMyOrdersOpen;
+    const isAnyModalOpen = selectedProduct || isCartOpen || isAuthModalOpen;
     if (isAnyModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
@@ -153,7 +169,79 @@ function App() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [selectedProduct, isCartOpen, isAuthModalOpen, isMyOrdersOpen]);
+  }, [selectedProduct, isCartOpen, isAuthModalOpen]);
+
+  // Sync cart to localStorage whenever it changes to persist across page reloads
+  useEffect(() => {
+    try {
+      localStorage.setItem('minimal_shop_cart', JSON.stringify(cart));
+    } catch (e) {
+      console.warn("Failed to save cart to localStorage:", e);
+    }
+  }, [cart]);
+
+  // Sync user profile name from database/local storage to keep user state in sync
+  useEffect(() => {
+    if (!user) return;
+    
+    const syncProfileName = async () => {
+      let localProfileName = '';
+      try {
+        const saved = localStorage.getItem(`minimal_profile_${user.id}`);
+        if (saved) {
+          const profile = JSON.parse(saved);
+          localProfileName = profile.full_name;
+        }
+      } catch (e) {}
+
+      if (localProfileName && user.user_metadata?.full_name !== localProfileName) {
+        setUser(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            user_metadata: {
+              ...prev.user_metadata,
+              full_name: localProfileName
+            }
+          };
+        });
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && data?.full_name && user.user_metadata?.full_name !== data.full_name) {
+          setUser(prev => {
+            if (!prev) return null;
+            const updated = {
+              ...prev,
+              user_metadata: {
+                ...prev.user_metadata,
+                full_name: data.full_name
+              }
+            };
+            localStorage.setItem('minimal_shop_session', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      } catch (err) {}
+    };
+
+    syncProfileName();
+  }, [user?.id]);
+
+  // Sync orders to localStorage whenever it changes to persist across page reloads
+  useEffect(() => {
+    try {
+      localStorage.setItem('minimal_shop_orders', JSON.stringify(orders));
+    } catch (e) {
+      console.warn("Failed to save orders to localStorage:", e);
+    }
+  }, [orders]);
 
   // --- Helper: Trigger Toast Alert ---
   const showToast = (message, type = 'success') => {
@@ -485,6 +573,10 @@ function App() {
   
   const handleCheckoutTrigger = () => {
     setIsCartOpen(false);
+    if (cart.length === 0) {
+      showToast('Giỏ hàng của bạn đang trống.', 'error');
+      return;
+    }
     if (!user) {
       setIsAuthModalOpen(true);
       showToast('Vui lòng đăng nhập để tiến hành thanh toán.', 'info');
@@ -515,6 +607,8 @@ function App() {
         });
 
       if (error) throw error;
+
+      setOrders(prev => [orderData, ...prev]);
 
       // 2. Update stock of products in Supabase Database
       for (const item of orderData.items) {
@@ -701,8 +795,6 @@ function App() {
           setActiveCategory(cat);
           setActiveView('shop');
         }}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
         cartCount={cartCount}
         onCartClick={() => setIsCartOpen(true)}
         isAdminMode={isAdminMode}
@@ -710,7 +802,8 @@ function App() {
         user={user}
         onLoginClick={() => setIsAuthModalOpen(true)}
         onLogoutClick={handleLogout}
-        onMyOrdersClick={() => setIsMyOrdersOpen(true)}
+        onMyOrdersClick={() => setActiveView('my-orders')}
+        onProfileClick={() => setActiveView('profile')}
         categories={categories}
         onDeleteAccountClick={handleDeleteSelfAccount}
       />
@@ -739,6 +832,20 @@ function App() {
             onSubmitOrder={handleSubmitOrder}
             clearCart={() => setCart([])}
           />
+        ) : activeView === 'my-orders' ? (
+          /* VIEW 2.5: MY ORDERS VIEW */
+          <UserOrdersPage
+            user={user}
+            localOrders={orders}
+            onBackToShop={() => setActiveView('shop')}
+          />
+        ) : activeView === 'profile' ? (
+          /* VIEW 2.8: USER PROFILE VIEW */
+          <UserProfilePage
+            user={user}
+            onBackToShop={() => setActiveView('shop')}
+            onUpdateProfile={(updatedUser) => setUser(updatedUser)}
+          />
         ) : (
           /* VIEW 3: SHOP / CATALOG VIEW */
           <>
@@ -752,22 +859,25 @@ function App() {
               </p>
             </div>
 
-            {/* Mobile Search Bar */}
-            <div className="mobile-search-container animate-fade-in">
-              <Search size={18} className="search-icon-mobile" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm sản phẩm..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input-mobile"
-              />
-            </div>
-
             {/* Catalog Layout: Sidebar + Main Grid */}
             <div className="catalog-layout">
               {/* Left Column: Sidebar Filters */}
               <aside className={`catalog-filters ${showMobileFilters ? 'show' : ''}`}>
+                {/* Search Filter Section */}
+                <div className="filter-section">
+                  <h4 className="filter-title">Tìm kiếm</h4>
+                  <div className="sidebar-search-bar">
+                    <Search size={16} className="sidebar-search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Tìm tên sản phẩm..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="sidebar-search-input"
+                    />
+                  </div>
+                </div>
+
                 <div className="filter-section">
                   <h4 className="filter-title">Bộ lọc giá</h4>
                   <div className="filter-list">
@@ -902,10 +1012,61 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', padding: '2rem 1.5rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-        <div style={{ maxWidth: 'var(--max-width)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <p>© 2026 STUDIO / MINIMAL. All rights reserved.</p>
-          <p style={{ fontSize: '0.75rem' }}>Thiết kế tối giản cho cuộc sống hiện đại.</p>
+      <footer className="site-footer">
+        <div className="footer-container">
+          <div className="footer-grid">
+            {/* Column 1: Brand Info */}
+            <div className="footer-col brand-col">
+              <h4 className="footer-logo">STUDIO / MINIMAL</h4>
+              <p className="brand-description">
+                Thương hiệu thời trang tối giản hướng đến sự tinh tế, bền vững và tính ứng dụng cao. Lược bỏ chi tiết thừa để tôn vinh vẻ đẹp tự nhiên của người mặc.
+              </p>
+            </div>
+
+            {/* Column 2: Customer Service */}
+            <div className="footer-col">
+              <h5 className="footer-title">Dịch vụ khách hàng</h5>
+              <ul className="footer-links">
+                <li><a href="#size-guide" onClick={(e) => e.preventDefault()}>Hướng dẫn chọn size</a></li>
+                <li><a href="#shipping" onClick={(e) => e.preventDefault()}>Chính sách giao hàng</a></li>
+                <li><a href="#returns" onClick={(e) => e.preventDefault()}>Chính sách đổi trả</a></li>
+                <li><a href="#privacy" onClick={(e) => e.preventDefault()}>Chính sách bảo mật</a></li>
+              </ul>
+            </div>
+
+            {/* Column 3: Shop Categories */}
+            <div className="footer-col">
+              <h5 className="footer-title">Danh mục sản phẩm</h5>
+              <ul className="footer-links">
+                <li><a href="#shop" onClick={(e) => { e.preventDefault(); setActiveCategory('Tất cả'); setActiveView('shop'); }}>Tất cả sản phẩm</a></li>
+                <li><a href="#shop" onClick={(e) => { e.preventDefault(); setActiveCategory('Nam'); setActiveView('shop'); }}>Thời trang Nam</a></li>
+                <li><a href="#shop" onClick={(e) => { e.preventDefault(); setActiveCategory('Nữ'); setActiveView('shop'); }}>Thời trang Nữ</a></li>
+                <li><a href="#shop" onClick={(e) => { e.preventDefault(); setActiveCategory('Phụ kiện'); setActiveView('shop'); }}>Phụ kiện thời trang</a></li>
+              </ul>
+            </div>
+
+            {/* Column 4: Contact & Socials */}
+            <div className="footer-col">
+              <h5 className="footer-title">Liên hệ & Kết nối</h5>
+              <ul className="footer-contact-list">
+                <li><strong>Hotline:</strong> 1900 8080 (9:00 - 22:00)</li>
+                <li><strong>Email:</strong> care@minimal.vn</li>
+                <li><strong>Địa chỉ:</strong> 136 Hồ Tùng Mậu, Cầu Giấy, Hà Nội</li>
+              </ul>
+              <div className="footer-social-links">
+                <a href="#instagram" className="social-icon-link" onClick={(e) => e.preventDefault()}>Instagram</a>
+                <span className="social-divider">•</span>
+                <a href="#facebook" className="social-icon-link" onClick={(e) => e.preventDefault()}>Facebook</a>
+                <span className="social-divider">•</span>
+                <a href="#pinterest" className="social-icon-link" onClick={(e) => e.preventDefault()}>Pinterest</a>
+              </div>
+            </div>
+          </div>
+
+          <div className="footer-bottom">
+            <p className="copyright-text">© 2026 STUDIO / MINIMAL. All rights reserved.</p>
+            <p className="tagline-text">Thiết kế tối giản cho cuộc sống hiện đại.</p>
+          </div>
         </div>
       </footer>
 
@@ -937,14 +1098,7 @@ function App() {
         onAuthSuccess={handleAuthSuccess}
       />
 
-      {/* 4. User Orders History Modal */}
-      {user && (
-        <UserOrdersModal
-          isOpen={isMyOrdersOpen}
-          onClose={() => setIsMyOrdersOpen(false)}
-          user={user}
-        />
-      )}
+
 
       {/* 5. Toast Notifications */}
       <Notification
