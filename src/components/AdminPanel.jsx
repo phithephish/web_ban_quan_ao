@@ -3,6 +3,7 @@ import {
   Plus, Trash2, Package, ListOrdered, Users, Tags, AlertCircle, 
   Trash, Eye, RefreshCw, ChevronRight, Search, ShieldAlert, X 
 } from 'lucide-react';
+import { supabase } from '../supabase';
 
 export default function AdminPanel({
   products,
@@ -23,14 +24,53 @@ export default function AdminPanel({
   // New Category State
   const [newCatName, setNewCatName] = useState('');
   
+  // Image Upload States
+  const [imageFile1, setImageFile1] = useState(null);
+  const [imageFile2, setImageFile2] = useState(null);
+  const [previewUrl1, setPreviewUrl1] = useState('');
+  const [previewUrl2, setPreviewUrl2] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange1 = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile1(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl1(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFileChange2 = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile2(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl2(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage1 = () => {
+    setImageFile1(null);
+    setPreviewUrl1('');
+  };
+
+  const removeImage2 = () => {
+    setImageFile2(null);
+    setPreviewUrl2('');
+  };
+
   // New Product Form State
   const [newProduct, setNewProduct] = useState({
     name: '',
     price: '',
     category: '',
     description: '',
-    imageUrl1: '',
-    imageUrl2: '',
     sizes: ['S', 'M', 'L', 'XL'],
     colorsInput: 'Đen:#18181b, Trắng:#fafafa, Xám:#71717a',
     inStock: 10,
@@ -69,7 +109,7 @@ export default function AdminPanel({
       return setFormError('Giá sản phẩm phải là số dương hợp lệ');
     }
     const finalCategory = newProduct.category || (categories[0]?.name || 'Nam');
-    if (!newProduct.imageUrl1.trim()) return setFormError('Vui lòng cung cấp ít nhất 1 ảnh sản phẩm');
+    if (!imageFile1) return setFormError('Vui lòng chọn hình ảnh chính cho sản phẩm');
 
     // Parse colors
     const parsedColors = [];
@@ -88,37 +128,85 @@ export default function AdminPanel({
       return setFormError('Định dạng màu sắc sai. VD: Đen:#000, Trắng:#fff');
     }
 
-    const newProdObj = {
-      id: Date.now(),
-      name: newProduct.name.trim(),
-      price: Number(newProduct.price),
-      category: finalCategory,
-      description: newProduct.description.trim() || 'Mô tả sản phẩm đang cập nhật.',
-      images: [
-        newProduct.imageUrl1.trim(),
-        ...(newProduct.imageUrl2.trim() ? [newProduct.imageUrl2.trim()] : []),
-      ],
-      sizes: newProduct.sizes,
-      colors: parsedColors,
-      inStock: Number(newProduct.inStock) || 0,
+    setUploading(true);
+
+    const uploadSingleFile = async (file) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+
+      try {
+        // Try creating/checking bucket
+        await supabase.storage.createBucket('product-images', { public: true }).catch(() => {});
+
+        const { data, error } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+        if (error) {
+          console.warn("Storage upload failed, using Base64 fallback:", error);
+          return null;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
+
+        return publicUrl;
+      } catch (err) {
+        console.warn("Storage upload failed, using Base64 fallback:", err);
+        return null;
+      }
     };
 
-    onAddProduct(newProdObj);
-    setIsAddProductModalOpen(false);
-    
-    // Reset form
-    setNewProduct({
-      name: '',
-      price: '',
-      category: categories[0]?.name || '',
-      description: '',
-      imageUrl1: '',
-      imageUrl2: '',
-      sizes: ['S', 'M', 'L', 'XL'],
-      colorsInput: 'Đen:#18181b, Trắng:#fafafa, Xám:#71717a',
-      inStock: 10,
-    });
-    setFormError('');
+    const runUploadAndSubmit = async () => {
+      try {
+        const uploadedUrl1 = await uploadSingleFile(imageFile1);
+        const finalUrl1 = uploadedUrl1 || previewUrl1; // Fallback to Base64 preview
+
+        let finalUrl2 = '';
+        if (imageFile2) {
+          const uploadedUrl2 = await uploadSingleFile(imageFile2);
+          finalUrl2 = uploadedUrl2 || previewUrl2;
+        }
+
+        const newProdObj = {
+          id: Date.now(),
+          name: newProduct.name.trim(),
+          price: Number(newProduct.price),
+          category: finalCategory,
+          description: newProduct.description.trim() || 'Mô tả sản phẩm đang cập nhật.',
+          images: [finalUrl1, ...(finalUrl2 ? [finalUrl2] : [])],
+          sizes: newProduct.sizes,
+          colors: parsedColors,
+          inStock: Number(newProduct.inStock) || 0,
+        };
+
+        await onAddProduct(newProdObj);
+        
+        // Reset states
+        setImageFile1(null);
+        setImageFile2(null);
+        setPreviewUrl1('');
+        setPreviewUrl2('');
+        setNewProduct({
+          name: '',
+          price: '',
+          category: categories[0]?.name || '',
+          description: '',
+          sizes: ['S', 'M', 'L', 'XL'],
+          colorsInput: 'Đen:#18181b, Trắng:#fafafa, Xám:#71717a',
+          inStock: 10,
+        });
+        setIsAddProductModalOpen(false);
+      } catch (submitErr) {
+        setFormError('Có lỗi xảy ra khi tải ảnh lên. Hãy thử lại.');
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    runUploadAndSubmit();
   };
 
   const handleCategorySubmit = (e) => {
@@ -351,25 +439,56 @@ export default function AdminPanel({
 
                     <div className="form-grid-2">
                       <div className="form-input-group">
-                        <label>Đường dẫn hình ảnh 1 *</label>
-                        <input
-                          type="url"
-                          name="imageUrl1"
-                          value={newProduct.imageUrl1}
-                          onChange={handleInputChange}
-                          placeholder="Đường dẫn link ảnh"
-                          required
-                        />
+                        <label>Ảnh chính sản phẩm *</label>
+                        {!previewUrl1 ? (
+                          <div className="image-upload-dropzone">
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={handleFileChange1} 
+                              required 
+                              id="image-file-1"
+                              className="hidden-file-input"
+                            />
+                            <label htmlFor="image-file-1" className="upload-trigger-label">
+                              <Plus size={20} />
+                              <span>Chọn ảnh chính</span>
+                            </label>
+                          </div>
+                        ) : (
+                          <div className="image-upload-preview-container">
+                            <img src={previewUrl1} alt="Preview 1" className="image-upload-preview" />
+                            <button type="button" className="remove-image-badge" onClick={removeImage1}>
+                              <X size={12} />
+                            </button>
+                          </div>
+                        )}
                       </div>
+
                       <div className="form-input-group">
-                        <label>Đường dẫn hình ảnh 2 (Không bắt buộc)</label>
-                        <input
-                          type="url"
-                          name="imageUrl2"
-                          value={newProduct.imageUrl2}
-                          onChange={handleInputChange}
-                          placeholder="Đường dẫn link ảnh phụ"
-                        />
+                        <label>Ảnh phụ sản phẩm (Không bắt buộc)</label>
+                        {!previewUrl2 ? (
+                          <div className="image-upload-dropzone">
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={handleFileChange2} 
+                              id="image-file-2"
+                              className="hidden-file-input"
+                            />
+                            <label htmlFor="image-file-2" className="upload-trigger-label">
+                              <Plus size={20} />
+                              <span>Chọn ảnh phụ</span>
+                            </label>
+                          </div>
+                        ) : (
+                          <div className="image-upload-preview-container">
+                            <img src={previewUrl2} alt="Preview 2" className="image-upload-preview" />
+                            <button type="button" className="remove-image-badge" onClick={removeImage2}>
+                              <X size={12} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -414,9 +533,20 @@ export default function AdminPanel({
                       />
                     </div>
 
-                    <button type="submit" className="admin-submit-btn" style={{ width: '100%', justifyContent: 'center' }}>
-                      <Plus size={16} />
-                      <span>Đăng bán sản phẩm</span>
+                    <button 
+                      type="submit" 
+                      className="admin-submit-btn" 
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      disabled={uploading}
+                    >
+                      {uploading ? (
+                        <span>Đang tải ảnh lên...</span>
+                      ) : (
+                        <>
+                          <Plus size={16} />
+                          <span>Đăng bán sản phẩm</span>
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>
