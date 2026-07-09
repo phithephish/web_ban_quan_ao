@@ -77,9 +77,17 @@ export default function AdminPanel({
     category: '',
     description: '',
     sizes: ['S', 'M', 'L', 'XL'],
-    colorsInput: 'Đen:#18181b, Trắng:#fafafa, Xám:#71717a',
+    colors: [
+      { name: 'Đen', hex: '#18181b' },
+      { name: 'Trắng', hex: '#fafafa' },
+      { name: 'Xám', hex: '#71717a' }
+    ],
     inStock: 10,
   });
+
+  // Temp Color Pickers States
+  const [tempColorName, setTempColorName] = useState('');
+  const [tempColorHex, setTempColorHex] = useState('#000000');
 
   // Product List Filter State
   const [prodStockFilter, setProdStockFilter] = useState('all'); // 'all', 'out', 'low'
@@ -93,6 +101,29 @@ export default function AdminPanel({
 
   const [formError, setFormError] = useState('');
 
+  const handleAddTempColor = () => {
+    const name = tempColorName.trim();
+    if (!name) return alert('Vui lòng nhập tên màu sắc (VD: Đỏ, Xanh)');
+    
+    // Check duplication
+    if (newProduct.colors.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+      return alert('Màu sắc này đã được thêm!');
+    }
+
+    setNewProduct(prev => ({
+      ...prev,
+      colors: [...prev.colors, { name, hex: tempColorHex }]
+    }));
+    setTempColorName('');
+  };
+
+  const handleRemoveColor = (colorName) => {
+    setNewProduct(prev => ({
+      ...prev,
+      colors: prev.colors.filter(c => c.name !== colorName)
+    }));
+  };
+
   const handleOpenAddProductModal = () => {
     setEditingProduct(null);
     setNewProduct({
@@ -101,13 +132,19 @@ export default function AdminPanel({
       category: categories[0]?.name || '',
       description: '',
       sizes: ['S', 'M', 'L', 'XL'],
-      colorsInput: 'Đen:#18181b, Trắng:#fafafa, Xám:#71717a',
+      colors: [
+        { name: 'Đen', hex: '#18181b' },
+        { name: 'Trắng', hex: '#fafafa' },
+        { name: 'Xám', hex: '#71717a' }
+      ],
       inStock: 10,
     });
     setImageFile1(null);
     setImageFile2(null);
     setPreviewUrl1('');
     setPreviewUrl2('');
+    setTempColorName('');
+    setTempColorHex('#000000');
     setFormError('');
     setIsAddProductModalOpen(true);
   };
@@ -120,13 +157,15 @@ export default function AdminPanel({
       category: product.category,
       description: product.description || '',
       sizes: product.sizes || [],
-      colorsInput: product.colors?.map(c => `${c.name}:${c.hex}`).join(', ') || '',
+      colors: product.colors || [],
       inStock: product.inStock,
     });
     setImageFile1(null);
     setImageFile2(null);
     setPreviewUrl1(product.images[0] || '');
     setPreviewUrl2(product.images[1] || '');
+    setTempColorName('');
+    setTempColorHex('#000000');
     setFormError('');
     setIsAddProductModalOpen(true);
   };
@@ -139,13 +178,19 @@ export default function AdminPanel({
       category: categories[0]?.name || '',
       description: '',
       sizes: ['S', 'M', 'L', 'XL'],
-      colorsInput: 'Đen:#18181b, Trắng:#fafafa, Xám:#71717a',
+      colors: [
+        { name: 'Đen', hex: '#18181b' },
+        { name: 'Trắng', hex: '#fafafa' },
+        { name: 'Xám', hex: '#71717a' }
+      ],
       inStock: 10,
     });
     setImageFile1(null);
     setImageFile2(null);
     setPreviewUrl1('');
     setPreviewUrl2('');
+    setTempColorName('');
+    setTempColorHex('#000000');
     setFormError('');
     setIsAddProductModalOpen(false);
   };
@@ -173,21 +218,9 @@ export default function AdminPanel({
     const finalCategory = newProduct.category || (categories[0]?.name || 'Nam');
     if (!imageFile1 && !previewUrl1) return setFormError('Vui lòng chọn hình ảnh chính cho sản phẩm');
 
-    // Parse colors
-    const parsedColors = [];
-    try {
-      const parts = newProduct.colorsInput.split(',');
-      parts.forEach((part) => {
-        const [name, hex] = part.split(':');
-        if (name && hex) {
-          parsedColors.push({ name: name.trim(), hex: hex.trim() });
-        }
-      });
-      if (parsedColors.length === 0) {
-        return setFormError('Màu sắc không hợp lệ (VD: Đen:#000, Trắng:#fff)');
-      }
-    } catch (e) {
-      return setFormError('Định dạng màu sắc sai. VD: Đen:#000, Trắng:#fff');
+    // Verify at least one color is added
+    if (!newProduct.colors || newProduct.colors.length === 0) {
+      return setFormError('Vui lòng thêm ít nhất một màu sắc cho sản phẩm');
     }
 
     setUploading(true);
@@ -247,7 +280,7 @@ export default function AdminPanel({
           description: newProduct.description.trim() || 'Mô tả sản phẩm đang cập nhật.',
           images: [finalUrl1, ...(finalUrl2 ? [finalUrl2] : [])],
           sizes: newProduct.sizes,
-          colors: parsedColors,
+          colors: newProduct.colors,
           inStock: Number(newProduct.inStock) || 0,
         };
 
@@ -597,14 +630,50 @@ export default function AdminPanel({
                         />
                       </div>
                       <div className="form-input-group">
-                        <label>Màu sắc (Định dạng: TênMàu:MãHex, cách bởi dấu phẩy)</label>
-                        <input
-                          type="text"
-                          name="colorsInput"
-                          value={newProduct.colorsInput}
-                          onChange={handleInputChange}
-                          placeholder="VD: Đen:#18181b, Trắng:#fafafa, Xám:#71717a"
-                        />
+                        <label>Màu sắc sản phẩm *</label>
+                        <div className="admin-color-tags-list">
+                          {newProduct.colors.map((color) => (
+                            <div key={color.name} className="admin-color-tag">
+                              <span className="admin-color-tag-indicator" style={{ backgroundColor: color.hex }}></span>
+                              <span className="admin-color-tag-name">{color.name}</span>
+                              <button 
+                                type="button" 
+                                className="admin-color-tag-remove" 
+                                onClick={() => handleRemoveColor(color.name)}
+                                title="Xóa màu"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="admin-color-picker-row">
+                          <input
+                            type="text"
+                            value={tempColorName}
+                            onChange={(e) => setTempColorName(e.target.value)}
+                            placeholder="Tên màu (VD: Đỏ, Hồng)"
+                            className="admin-color-name-input"
+                            style={{ margin: 0 }}
+                          />
+                          <div className="admin-color-picker-wrapper">
+                            <input
+                              type="color"
+                              value={tempColorHex}
+                              onChange={(e) => setTempColorHex(e.target.value)}
+                              className="admin-color-picker-input"
+                              title="Chọn mã màu"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleAddTempColor}
+                            className="admin-add-color-btn"
+                          >
+                            <Plus size={14} />
+                            <span>Thêm</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 

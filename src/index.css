@@ -3800,3 +3800,113 @@ hr.divider {
     border-radius: 0;
   }
 }
+
+/* Color Tags & Picker list in admin form */
+.admin-color-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  min-height: 24px;
+}
+
+.admin-color-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.admin-color-tag-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  display: inline-block;
+}
+
+.admin-color-tag-name {
+  color: var(--text-primary);
+}
+
+.admin-color-tag-remove {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: var(--transition-smooth);
+}
+
+.admin-color-tag-remove:hover {
+  color: var(--danger-color);
+}
+
+.admin-color-picker-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-color-name-input {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem !important;
+}
+
+.admin-color-picker-wrapper {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.admin-color-picker-input {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: none;
+}
+
+.admin-add-color-btn {
+  background-color: var(--text-primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 6px;
+  height: 38px;
+  padding: 0 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: var(--transition-smooth);
+  flex-shrink: 0;
+}
+
+.admin-add-color-btn:hover {
+  opacity: 0.9;
+}
