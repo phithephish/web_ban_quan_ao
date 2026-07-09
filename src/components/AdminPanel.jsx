@@ -9,6 +9,7 @@ export default function AdminPanel({
   products,
   onAddProduct,
   onDeleteProduct,
+  onUpdateProduct,
   orders,
   onUpdateOrderStatus,
   onDeleteOrder,
@@ -33,6 +34,7 @@ export default function AdminPanel({
   const [previewUrl1, setPreviewUrl1] = useState('');
   const [previewUrl2, setPreviewUrl2] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
 
   const handleFileChange1 = (e) => {
     const file = e.target.files[0];
@@ -91,6 +93,63 @@ export default function AdminPanel({
 
   const [formError, setFormError] = useState('');
 
+  const handleOpenAddProductModal = () => {
+    setEditingProduct(null);
+    setNewProduct({
+      name: '',
+      price: '',
+      category: categories[0]?.name || '',
+      description: '',
+      sizes: ['S', 'M', 'L', 'XL'],
+      colorsInput: 'Đen:#18181b, Trắng:#fafafa, Xám:#71717a',
+      inStock: 10,
+    });
+    setImageFile1(null);
+    setImageFile2(null);
+    setPreviewUrl1('');
+    setPreviewUrl2('');
+    setFormError('');
+    setIsAddProductModalOpen(true);
+  };
+
+  const startEditProduct = (product) => {
+    setEditingProduct(product);
+    setNewProduct({
+      name: product.name,
+      price: product.price,
+      category: product.category,
+      description: product.description || '',
+      sizes: product.sizes || [],
+      colorsInput: product.colors?.map(c => `${c.name}:${c.hex}`).join(', ') || '',
+      inStock: product.inStock,
+    });
+    setImageFile1(null);
+    setImageFile2(null);
+    setPreviewUrl1(product.images[0] || '');
+    setPreviewUrl2(product.images[1] || '');
+    setFormError('');
+    setIsAddProductModalOpen(true);
+  };
+
+  const cancelEditProduct = () => {
+    setEditingProduct(null);
+    setNewProduct({
+      name: '',
+      price: '',
+      category: categories[0]?.name || '',
+      description: '',
+      sizes: ['S', 'M', 'L', 'XL'],
+      colorsInput: 'Đen:#18181b, Trắng:#fafafa, Xám:#71717a',
+      inStock: 10,
+    });
+    setImageFile1(null);
+    setImageFile2(null);
+    setPreviewUrl1('');
+    setPreviewUrl2('');
+    setFormError('');
+    setIsAddProductModalOpen(false);
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewProduct({ ...newProduct, [name]: value });
@@ -112,7 +171,7 @@ export default function AdminPanel({
       return setFormError('Giá sản phẩm phải là số dương hợp lệ');
     }
     const finalCategory = newProduct.category || (categories[0]?.name || 'Nam');
-    if (!imageFile1) return setFormError('Vui lòng chọn hình ảnh chính cho sản phẩm');
+    if (!imageFile1 && !previewUrl1) return setFormError('Vui lòng chọn hình ảnh chính cho sản phẩm');
 
     // Parse colors
     const parsedColors = [];
@@ -134,12 +193,12 @@ export default function AdminPanel({
     setUploading(true);
 
     const uploadSingleFile = async (file) => {
+      if (!file) return null;
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `products/${fileName}`;
 
       try {
-        // Try creating/checking bucket
         await supabase.storage.createBucket('product-images', { public: true }).catch(() => {});
 
         const { data, error } = await supabase.storage
@@ -164,17 +223,24 @@ export default function AdminPanel({
 
     const runUploadAndSubmit = async () => {
       try {
-        const uploadedUrl1 = await uploadSingleFile(imageFile1);
-        const finalUrl1 = uploadedUrl1 || previewUrl1; // Fallback to Base64 preview
+        let finalUrl1 = '';
+        if (imageFile1) {
+          const uploadedUrl1 = await uploadSingleFile(imageFile1);
+          finalUrl1 = uploadedUrl1 || previewUrl1;
+        } else if (previewUrl1) {
+          finalUrl1 = previewUrl1;
+        }
 
         let finalUrl2 = '';
         if (imageFile2) {
           const uploadedUrl2 = await uploadSingleFile(imageFile2);
           finalUrl2 = uploadedUrl2 || previewUrl2;
+        } else if (previewUrl2) {
+          finalUrl2 = previewUrl2;
         }
 
         const newProdObj = {
-          id: Date.now(),
+          id: editingProduct ? editingProduct.id : Date.now(),
           name: newProduct.name.trim(),
           price: Number(newProduct.price),
           category: finalCategory,
@@ -185,25 +251,15 @@ export default function AdminPanel({
           inStock: Number(newProduct.inStock) || 0,
         };
 
-        await onAddProduct(newProdObj);
+        if (editingProduct) {
+          await onUpdateProduct(newProdObj);
+        } else {
+          await onAddProduct(newProdObj);
+        }
         
-        // Reset states
-        setImageFile1(null);
-        setImageFile2(null);
-        setPreviewUrl1('');
-        setPreviewUrl2('');
-        setNewProduct({
-          name: '',
-          price: '',
-          category: categories[0]?.name || '',
-          description: '',
-          sizes: ['S', 'M', 'L', 'XL'],
-          colorsInput: 'Đen:#18181b, Trắng:#fafafa, Xám:#71717a',
-          inStock: 10,
-        });
-        setIsAddProductModalOpen(false);
+        cancelEditProduct();
       } catch (submitErr) {
-        setFormError('Có lỗi xảy ra khi tải ảnh lên. Hãy thử lại.');
+        setFormError('Có lỗi xảy ra khi đăng bán sản phẩm. Hãy thử lại.');
       } finally {
         setUploading(false);
       }
@@ -400,17 +456,14 @@ export default function AdminPanel({
                   <button 
                     type="button" 
                     className="modal-close-btn" 
-                    onClick={() => {
-                      setIsAddProductModalOpen(false);
-                      setFormError('');
-                    }}
+                    onClick={cancelEditProduct}
                     aria-label="Đóng"
                   >
                     <X size={20} />
                   </button>
                   
                   <form onSubmit={handleProductSubmit} className="admin-product-form" style={{ border: 'none', padding: 0, margin: 0, boxShadow: 'none' }}>
-                    <h3 style={{ marginTop: 0 }}>Đăng bán sản phẩm mới</h3>
+                    <h3 style={{ marginTop: 0 }}>{editingProduct ? 'Chỉnh sửa sản phẩm' : 'Đăng bán sản phẩm mới'}</h3>
                     {formError && <p className="form-error-msg" style={{ marginBottom: '1rem' }}>{formError}</p>}
                     
                     <div className="form-grid-3">
@@ -565,8 +618,8 @@ export default function AdminPanel({
                         <span>Đang tải ảnh lên...</span>
                       ) : (
                         <>
-                          <Plus size={16} />
-                          <span>Đăng bán sản phẩm</span>
+                          {editingProduct ? <Check size={16} /> : <Plus size={16} />}
+                          <span>{editingProduct ? 'Cập nhật sản phẩm' : 'Đăng bán sản phẩm'}</span>
                         </>
                       )}
                     </button>
@@ -594,7 +647,7 @@ export default function AdminPanel({
 
                 <button 
                   type="button" 
-                  onClick={() => setIsAddProductModalOpen(true)}
+                  onClick={handleOpenAddProductModal}
                   className="admin-add-product-btn"
                   style={{
                     backgroundColor: 'var(--accent-color)',
@@ -654,17 +707,37 @@ export default function AdminPanel({
                         </span>
                       </td>
                       <td>
-                        <button
-                          className="table-delete-btn"
-                          onClick={() => {
-                            if (window.confirm(`Xóa vĩnh viễn sản phẩm "${p.name}"?`)) {
-                              onDeleteProduct(p.id);
-                            }
-                          }}
-                          title="Xóa sản phẩm"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="table-action-btn"
+                            style={{ 
+                              background: 'none', 
+                              border: 'none', 
+                              color: 'var(--text-secondary)', 
+                              cursor: 'pointer',
+                              padding: '0.25rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              transition: 'var(--transition-smooth)'
+                            }}
+                            onClick={() => startEditProduct(p)}
+                            title="Sửa sản phẩm"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            className="table-delete-btn"
+                            onClick={() => {
+                              if (window.confirm(`Xóa vĩnh viễn sản phẩm "${p.name}"?`)) {
+                                onDeleteProduct(p.id);
+                              }
+                            }}
+                            title="Xóa sản phẩm"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

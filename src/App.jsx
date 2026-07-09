@@ -721,6 +721,32 @@ function App() {
     }
   };
 
+  const handleUpdateProduct = async (updatedProductObj) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          name: updatedProductObj.name,
+          price: updatedProductObj.price,
+          category: updatedProductObj.category,
+          description: updatedProductObj.description,
+          images: updatedProductObj.images,
+          sizes: updatedProductObj.sizes,
+          colors: updatedProductObj.colors,
+          inStock: updatedProductObj.inStock
+        })
+        .eq('id', updatedProductObj.id);
+
+      if (error) throw error;
+      setProducts(products.map((p) => p.id === updatedProductObj.id ? updatedProductObj : p));
+      showToast(`Đã cập nhật sản phẩm "${updatedProductObj.name}" thành công.`);
+    } catch (err) {
+      console.warn("Failed to update product in Supabase. Updating locally.", err);
+      setProducts(products.map((p) => p.id === updatedProductObj.id ? updatedProductObj : p));
+      showToast(`Đã cập nhật sản phẩm "${updatedProductObj.name}" (Cục bộ).`);
+    }
+  };
+
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
       const { error } = await supabase
@@ -845,6 +871,7 @@ function App() {
             products={products}
             onAddProduct={handleAddProduct}
             onDeleteProduct={handleDeleteProduct}
+            onUpdateProduct={handleUpdateProduct}
             orders={orders}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onDeleteOrder={handleDeleteOrder}
