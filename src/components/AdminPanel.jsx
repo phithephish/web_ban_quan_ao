@@ -21,6 +21,7 @@ export default function AdminPanel({
 }) {
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'products', 'categories', 'users'
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   // New Category State
   const [newCatName, setNewCatName] = useState('');
@@ -232,16 +233,19 @@ export default function AdminPanel({
       onAddCategory(trimmedName);
     }
     setNewCatName('');
+    setIsCategoryModalOpen(false);
   };
 
   const startEditCategory = (category) => {
     setEditingCategory(category);
     setNewCatName(category.name);
+    setIsCategoryModalOpen(true);
   };
 
   const cancelEditCategory = () => {
     setEditingCategory(null);
     setNewCatName('');
+    setIsCategoryModalOpen(false);
   };
 
   // Filter products based on stock selection
@@ -682,93 +686,135 @@ export default function AdminPanel({
           <div className="admin-section">
             <h2 className="admin-section-title">Quản lý danh mục</h2>
             
-            <div className="admin-grid-2" style={{ alignItems: 'flex-start' }}>
-              {/* Form Add/Edit Category */}
-              <form onSubmit={handleCategorySubmit} className="admin-product-form" style={{ margin: 0 }}>
-                <h3>{editingCategory ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới'}</h3>
-                <div className="form-input-group" style={{ marginBottom: '1rem' }}>
-                  <label>Tên danh mục *</label>
-                  <input
-                    type="text"
-                    value={newCatName}
-                    onChange={(e) => setNewCatName(e.target.value)}
-                    placeholder="VD: Đồ Thể Thao, Đồ Ngủ..."
-                    required
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="submit" className="admin-submit-btn" style={{ margin: 0, flex: 1, justifyContent: 'center' }}>
-                    {editingCategory ? <Check size={16} /> : <Plus size={16} />}
-                    <span>{editingCategory ? 'Cập nhật' : 'Lưu danh mục'}</span>
+            {/* Form Add/Edit Category (Rendered in Modal) */}
+            {isCategoryModalOpen && (
+              <div className="modal-backdrop">
+                <div className="admin-category-modal-content animate-fade-in">
+                  <button 
+                    type="button" 
+                    className="modal-close-btn" 
+                    onClick={() => {
+                      cancelEditCategory();
+                    }}
+                    aria-label="Đóng"
+                  >
+                    <X size={20} />
                   </button>
-                  {editingCategory && (
-                    <button 
-                      type="button" 
-                      onClick={cancelEditCategory} 
-                      className="admin-submit-btn" 
-                      style={{ margin: 0, backgroundColor: 'var(--border-color)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', flex: 1, justifyContent: 'center' }}
-                    >
-                      <span>Hủy</span>
-                    </button>
-                  )}
+                  
+                  <form onSubmit={handleCategorySubmit} className="admin-product-form" style={{ border: 'none', padding: 0, margin: 0, boxShadow: 'none' }}>
+                    <h3 style={{ marginTop: 0 }}>{editingCategory ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới'}</h3>
+                    <div className="form-input-group" style={{ marginBottom: '1.5rem' }}>
+                      <label>Tên danh mục *</label>
+                      <input
+                        type="text"
+                        value={newCatName}
+                        onChange={(e) => setNewCatName(e.target.value)}
+                        placeholder="VD: Đồ Thể Thao, Đồ Ngủ..."
+                        required
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button type="submit" className="admin-submit-btn" style={{ margin: 0, flex: 1, justifyContent: 'center' }}>
+                        {editingCategory ? <Check size={16} /> : <Plus size={16} />}
+                        <span>{editingCategory ? 'Cập nhật' : 'Lưu danh mục'}</span>
+                      </button>
+                      {editingCategory && (
+                        <button 
+                          type="button" 
+                          onClick={cancelEditCategory} 
+                          className="admin-submit-btn" 
+                          style={{ margin: 0, backgroundColor: 'var(--border-color)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', flex: 1, justifyContent: 'center' }}
+                        >
+                          <span>Hủy</span>
+                        </button>
+                      )}
+                    </div>
+                  </form>
                 </div>
-              </form>
-
-              {/* Category Table */}
-              <div className="admin-products-table-wrapper" style={{ margin: 0 }}>
-                <table className="admin-products-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Tên danh mục</th>
-                      <th>Ngày tạo</th>
-                      <th style={{ textAlign: 'right' }}>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categories.map((c, index) => (
-                      <tr key={c.id || index}>
-                        <td><strong>{c.id || index + 1}</strong></td>
-                        <td><strong>{c.name}</strong></td>
-                        <td>{c.created_at ? new Date(c.created_at).toLocaleDateString('vi-VN') : 'Mặc định'}</td>
-                        <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
-                            <button
-                              type="button"
-                              className="table-action-btn"
-                              style={{ 
-                                background: 'none', 
-                                border: 'none', 
-                                color: 'var(--text-secondary)', 
-                                cursor: 'pointer',
-                                padding: '0.25rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                transition: 'var(--transition-smooth)'
-                              }}
-                              onClick={() => startEditCategory(c)}
-                              title="Sửa danh mục"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              className="table-delete-btn"
-                              onClick={() => {
-                                if (window.confirm(`Xóa danh mục "${c.name}"? Các sản phẩm thuộc danh mục này có thể cần phân loại lại.`)) {
-                                  onDeleteCategory(c.id, c.name);
-                                }
-                              }}
-                              title="Xóa danh mục"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
+            )}
+
+            {/* List Categories Header Toolbar */}
+            <div className="admin-toolbar-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
+              <h3 className="section-title" style={{ margin: 0 }}>Danh sách danh mục ({categories.length})</h3>
+              
+              <button 
+                type="button" 
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="admin-add-product-btn"
+                style={{
+                  backgroundColor: 'var(--accent-color)',
+                  color: 'var(--bg-primary)',
+                  border: 'none',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <Plus size={14} />
+                <span>Thêm danh mục</span>
+              </button>
+            </div>
+
+            {/* Category Table */}
+            <div className="admin-products-table-wrapper" style={{ margin: 0 }}>
+              <table className="admin-products-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Tên danh mục</th>
+                    <th>Ngày tạo</th>
+                    <th style={{ textAlign: 'right' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map((c, index) => (
+                    <tr key={c.id || index}>
+                      <td><strong>{c.id || index + 1}</strong></td>
+                      <td><strong>{c.name}</strong></td>
+                      <td>{c.created_at ? new Date(c.created_at).toLocaleDateString('vi-VN') : 'Mặc định'}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="table-action-btn"
+                            style={{ 
+                              background: 'none', 
+                              border: 'none', 
+                              color: 'var(--text-secondary)', 
+                              cursor: 'pointer',
+                              padding: '0.25rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              transition: 'var(--transition-smooth)'
+                            }}
+                            onClick={() => startEditCategory(c)}
+                            title="Sửa danh mục"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            className="table-delete-btn"
+                            onClick={() => {
+                              if (window.confirm(`Xóa danh mục "${c.name}"? Các sản phẩm thuộc danh mục này có thể cần phân loại lại.`)) {
+                                onDeleteCategory(c.id, c.name);
+                              }
+                            }}
+                            title="Xóa danh mục"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
