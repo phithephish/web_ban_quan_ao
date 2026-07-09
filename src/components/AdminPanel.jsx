@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Plus, Trash2, Package, ListOrdered, Users, Tags, AlertCircle, 
-  Trash, Eye, RefreshCw, ChevronRight, Search, ShieldAlert, X 
+  Trash, Eye, RefreshCw, ChevronRight, Search, ShieldAlert, X, Edit, Check 
 } from 'lucide-react';
 import { supabase } from '../supabase';
 
@@ -15,6 +15,7 @@ export default function AdminPanel({
   categories,
   onAddCategory,
   onDeleteCategory,
+  onUpdateCategory,
   profiles,
   onDeleteUser,
 }) {
@@ -23,6 +24,7 @@ export default function AdminPanel({
 
   // New Category State
   const [newCatName, setNewCatName] = useState('');
+  const [editingCategory, setEditingCategory] = useState(null);
   
   // Image Upload States
   const [imageFile1, setImageFile1] = useState(null);
@@ -211,18 +213,34 @@ export default function AdminPanel({
 
   const handleCategorySubmit = (e) => {
     e.preventDefault();
-    if (!newCatName.trim()) return;
+    const trimmedName = newCatName.trim();
+    if (!trimmedName) return;
     
-    // Check duplication
+    // Check duplication (excluding the current category being edited if name is unchanged)
     const duplicate = categories.some(
-      (c) => c.name.toLowerCase() === newCatName.trim().toLowerCase()
+      (c) => c.name.toLowerCase() === trimmedName.toLowerCase() && (!editingCategory || c.id !== editingCategory.id)
     );
     if (duplicate) {
       alert('Danh mục này đã tồn tại!');
       return;
     }
 
-    onAddCategory(newCatName.trim());
+    if (editingCategory) {
+      onUpdateCategory(editingCategory.id, trimmedName);
+      setEditingCategory(null);
+    } else {
+      onAddCategory(trimmedName);
+    }
+    setNewCatName('');
+  };
+
+  const startEditCategory = (category) => {
+    setEditingCategory(category);
+    setNewCatName(category.name);
+  };
+
+  const cancelEditCategory = () => {
+    setEditingCategory(null);
     setNewCatName('');
   };
 
@@ -665,9 +683,9 @@ export default function AdminPanel({
             <h2 className="admin-section-title">Quản lý danh mục</h2>
             
             <div className="admin-grid-2" style={{ alignItems: 'flex-start' }}>
-              {/* Form Add Category */}
+              {/* Form Add/Edit Category */}
               <form onSubmit={handleCategorySubmit} className="admin-product-form" style={{ margin: 0 }}>
-                <h3>Thêm danh mục mới</h3>
+                <h3>{editingCategory ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới'}</h3>
                 <div className="form-input-group" style={{ marginBottom: '1rem' }}>
                   <label>Tên danh mục *</label>
                   <input
@@ -678,10 +696,22 @@ export default function AdminPanel({
                     required
                   />
                 </div>
-                <button type="submit" className="admin-submit-btn" style={{ margin: 0 }}>
-                  <Plus size={16} />
-                  <span>Lưu danh mục</span>
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="submit" className="admin-submit-btn" style={{ margin: 0, flex: 1, justifyContent: 'center' }}>
+                    {editingCategory ? <Check size={16} /> : <Plus size={16} />}
+                    <span>{editingCategory ? 'Cập nhật' : 'Lưu danh mục'}</span>
+                  </button>
+                  {editingCategory && (
+                    <button 
+                      type="button" 
+                      onClick={cancelEditCategory} 
+                      className="admin-submit-btn" 
+                      style={{ margin: 0, backgroundColor: 'var(--border-color)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', flex: 1, justifyContent: 'center' }}
+                    >
+                      <span>Hủy</span>
+                    </button>
+                  )}
+                </div>
               </form>
 
               {/* Category Table */}
@@ -702,17 +732,37 @@ export default function AdminPanel({
                         <td><strong>{c.name}</strong></td>
                         <td>{c.created_at ? new Date(c.created_at).toLocaleDateString('vi-VN') : 'Mặc định'}</td>
                         <td style={{ textAlign: 'right' }}>
-                          <button
-                            className="table-delete-btn"
-                            onClick={() => {
-                              if (window.confirm(`Xóa danh mục "${c.name}"? Các sản phẩm thuộc danh mục này có thể cần phân loại lại.`)) {
-                                onDeleteCategory(c.id, c.name);
-                              }
-                            }}
-                            title="Xóa danh mục"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="table-action-btn"
+                              style={{ 
+                                background: 'none', 
+                                border: 'none', 
+                                color: 'var(--text-secondary)', 
+                                cursor: 'pointer',
+                                padding: '0.25rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'var(--transition-smooth)'
+                              }}
+                              onClick={() => startEditCategory(c)}
+                              title="Sửa danh mục"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              className="table-delete-btn"
+                              onClick={() => {
+                                if (window.confirm(`Xóa danh mục "${c.name}"? Các sản phẩm thuộc danh mục này có thể cần phân loại lại.`)) {
+                                  onDeleteCategory(c.id, c.name);
+                                }
+                              }}
+                              title="Xóa danh mục"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -403,6 +403,23 @@ function App() {
     }
   };
 
+  const handleUpdateCategory = async (catId, newName) => {
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .update({ name: newName })
+        .eq('id', catId);
+
+      if (error) throw error;
+      setCategories(categories.map(c => c.id === catId ? { ...c, name: newName } : c));
+      showToast(`Đã cập nhật danh mục thành "${newName}".`);
+    } catch (err) {
+      console.error("Failed to update category in Supabase:", err);
+      setCategories(categories.map(c => c.id === catId ? { ...c, name: newName } : c));
+      showToast(`Đã cập nhật danh mục cục bộ.`);
+    }
+  };
+
   const handleDeleteUserAccount = async (userId) => {
     try {
       // 1. Delete profile row in database
@@ -834,6 +851,7 @@ function App() {
             categories={categories}
             onAddCategory={handleAddCategory}
             onDeleteCategory={handleDeleteCategory}
+            onUpdateCategory={handleUpdateCategory}
             profiles={profiles}
             onDeleteUser={handleDeleteUserAccount}
           />
